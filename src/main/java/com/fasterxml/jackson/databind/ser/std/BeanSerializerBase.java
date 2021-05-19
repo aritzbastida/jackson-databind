@@ -593,12 +593,12 @@ public abstract class BeanSerializerBase
         throws IOException
     {
         if (_objectIdWriter != null) {
-            gen.setCurrentValue(bean); // [databind#631]
+            //gen.setCurrentValue(bean); // [databind#631]
             _serializeWithObjectId(bean, gen, provider, typeSer);
             return;
         }
 
-        gen.setCurrentValue(bean); // [databind#631]
+        //gen.setCurrentValue(bean); // [databind#631]
         WritableTypeId typeIdDef = _typeIdDef(typeSer, bean, JsonToken.START_OBJECT);
         typeSer.writeTypePrefix(gen, typeIdDef);
         if (_propertyFilterId != null) {
