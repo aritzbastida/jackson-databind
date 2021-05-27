@@ -8,9 +8,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.Element;
 
-import com.fasterxml.jackson.annotation.JsonFilter;
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.core.io.CharacterEscapes;
 import com.fasterxml.jackson.databind.*;
@@ -166,24 +165,43 @@ public class TestCustomSerializers extends BaseMapTest
     }
 
     @JsonFilter("myFilter")
-    @JsonPropertyOrder({ "id", "set" })
+    @JsonPropertyOrder({ "id", "strategy", "set" })
     public static class Item2475 {
+    	
         private Collection<String> set;
-        private String id;
+        private Strategy strategy;
+		private String id;
 
         public Item2475(Collection<String> set, String id) {
             this.set = set;
+            this.strategy = new Foo(42);
             this.id = id;
         }
 
         public Collection<String> getSet() {
             return set;
         }
+        
+        public Strategy getStrategy() {
+			return strategy;
+		}        
 
         public String getId() {
             return id;
         }
     }
+      
+    @JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS, include = As.PROPERTY, property = "@class")
+    interface Strategy { }
+
+    static class Foo implements Strategy {
+        public int foo;
+
+        @JsonCreator
+        Foo(@JsonProperty("foo") int foo) {
+            this.foo = foo;
+        }
+    }     
 
     /*
     /**********************************************************
@@ -292,17 +310,24 @@ public class TestCustomSerializers extends BaseMapTest
     }
 
     // [databind#2475]
-    public void testIssue2475() throws Exception {
+    public void testIssue2475Filter() throws Exception {
         SimpleFilterProvider provider = new SimpleFilterProvider().addFilter("myFilter", new MyFilter2475());
         ObjectWriter writer = MAPPER.writer(provider);
-
-        // contents don't really matter that much as verification within filter but... let's
-        // check anyway
-        assertEquals(aposToQuotes("{'id':'ID-1','set':[]}"),
-                writer.writeValueAsString(new Item2475(new ArrayList<String>(), "ID-1")));
-
-        assertEquals(aposToQuotes("{'id':'ID-2','set':[]}"),
-                writer.writeValueAsString(new Item2475(new HashSet<String>(), "ID-2")));
+        
+        writer.writeValueAsString(new Item2475(new ArrayList<String>(), "ID-1"));
     }    
+
+    // [databind#2475]
+    public void testIssue2475Contents() throws Exception {
+        SimpleFilterProvider provider = new SimpleFilterProvider().addFilter("myFilter", new SimpleBeanPropertyFilter() {});
+        ObjectWriter writer = MAPPER.writer(provider);
+        
+        assertEquals(aposToQuotes("{'id':'ID-1','strategy':{'foo':42},'set':[]}"),
+        		writer.writeValueAsString(new Item2475(new ArrayList<String>(), "ID-1")));
+
+        assertEquals(aposToQuotes("{'id':'ID-2','strategy':{'foo':42},'set':[]}"),
+        		writer.writeValueAsString(new Item2475(new HashSet<String>(), "ID-2")));
+    } 
+    
 
 }
